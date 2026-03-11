@@ -13,6 +13,7 @@ export const employees = pgTable("employees", {
 export const leaves = pgTable("leaves", {
   id: serial("id").primaryKey(),
   employeeId: integer("employee_id").notNull(),
+  nepaliYear: integer("nepali_year").notNull(),
   nepaliMonth: integer("nepali_month").notNull(),
   day: integer("day").notNull(),
 });
@@ -20,6 +21,7 @@ export const leaves = pgTable("leaves", {
 export const meals = pgTable("meals", {
   id: serial("id").primaryKey(),
   employeeId: integer("employee_id").notNull(),
+  nepaliYear: integer("nepali_year").notNull(),
   nepaliMonth: integer("nepali_month").notNull(),
   day: integer("day").notNull(),
   mealStatus: text("meal_status").notNull().default("none"),

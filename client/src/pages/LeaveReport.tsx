@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 
 export default function LeaveReport() {
+  const [selectedYear, setSelectedYear] = useState(2082);
   const [selectedMonth, setSelectedMonth] = useState(1);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [detailDay, setDetailDay] = useState<number | null>(null);
@@ -27,7 +28,7 @@ export default function LeaveReport() {
   const [formMonth, setFormMonth] = useState(selectedMonth.toString());
   const [formDay, setFormDay] = useState("");
 
-  const monthLeaves = leaves?.filter(l => l.nepaliMonth === selectedMonth) || [];
+  const monthLeaves = leaves?.filter(l => l.nepaliYear === selectedYear && l.nepaliMonth === selectedMonth) || [];
   
   const leavesByDay = new Map<number, typeof leaves>();
   monthLeaves.forEach(l => {
@@ -41,6 +42,7 @@ export default function LeaveReport() {
     
     createLeave.mutate({
       employeeId: Number(formEmpId),
+      nepaliYear: selectedYear,
       nepaliMonth: Number(formMonth),
       day: Number(formDay)
     }, {
@@ -58,6 +60,7 @@ export default function LeaveReport() {
     selectedEmployees.forEach(empId => {
       createLeave.mutate({
         employeeId: empId,
+        nepaliYear: selectedYear,
         nepaliMonth: selectedMonth,
         day: multiSelectDay
       });
@@ -131,6 +134,26 @@ export default function LeaveReport() {
             </form>
           </DialogContent>
         </Dialog>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="flex gap-2 shrink-0">
+          {Array.from({ length: 103 }, (_, i) => 2080 + i).map(year => (
+            <Button
+              key={year}
+              variant={selectedYear === year ? "default" : "outline"}
+              className={cn(
+                "rounded-lg text-sm transition-all",
+                selectedYear === year 
+                  ? "shadow-md shadow-primary/20" 
+                  : "bg-card hover:bg-muted"
+              )}
+              onClick={() => setSelectedYear(year)}
+            >
+              {year}
+            </Button>
+          ))}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-6">

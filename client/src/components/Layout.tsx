@@ -37,7 +37,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {[2080, 2081, 2082, 2083, 2084].map((year) => (
+              {Array.from({ length: 103 }, (_, i) => 2080 + i).map((year) => (
                 <SelectItem key={year} value={year.toString()}>
                   {year} B.S.
                 </SelectItem>
@@ -89,7 +89,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-72 border-r border-border/50 bg-card/50 backdrop-blur-xl shrink-0">
+      <aside className="hidden md:flex flex-col fixed left-0 top-0 h-screen w-72 border-r border-border/50 bg-card/50 backdrop-blur-xl shrink-0 z-40">
         <SidebarContent />
       </aside>
 
@@ -104,7 +104,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto w-full">
+      <main className="flex-1 overflow-y-auto w-full md:ml-72">
         <div className="p-4 md:p-8 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
           {children}
         </div>

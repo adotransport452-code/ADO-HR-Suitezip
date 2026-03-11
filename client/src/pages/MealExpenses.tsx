@@ -9,13 +9,14 @@ import { Check, X, UtensilsCrossed, Egg } from "lucide-react";
 type MealStatus = "none" | "meal" | "meal_with_egg";
 
 export default function MealExpenses() {
+  const [selectedYear, setSelectedYear] = useState(2082);
   const [selectedMonth, setSelectedMonth] = useState(1);
   const { data: employees, isLoading: loadingEmps } = useEmployees();
   const { data: meals, isLoading: loadingMeals } = useMeals();
   const toggleMeal = useToggleMeal();
 
   const getMealStatus = (empId: number, day: number): MealStatus => {
-    const meal = meals?.find(m => m.employeeId === empId && m.nepaliMonth === selectedMonth && m.day === day);
+    const meal = meals?.find(m => m.employeeId === empId && m.nepaliYear === selectedYear && m.nepaliMonth === selectedMonth && m.day === day);
     return (meal?.mealStatus as MealStatus) ?? "none";
   };
 
@@ -33,6 +34,7 @@ export default function MealExpenses() {
     const nextStatus = getNextStatus(currentStatus);
     toggleMeal.mutate({
       employeeId: empId,
+      nepaliYear: selectedYear,
       nepaliMonth: selectedMonth,
       day,
       mealStatus: nextStatus
@@ -73,6 +75,26 @@ export default function MealExpenses() {
       <div className="shrink-0">
         <h1 className="text-3xl font-display font-bold text-foreground">Meal Expenses</h1>
         <p className="text-muted-foreground mt-1 text-sm">Track daily meal consumption for accurate expensing. Meal = Rs. 120, Meal with Egg = Rs. 145</p>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-4 shrink-0">
+        <div className="flex gap-2 shrink-0 overflow-x-auto pb-2">
+          {Array.from({ length: 103 }, (_, i) => 2080 + i).map(year => (
+            <Button
+              key={year}
+              variant={selectedYear === year ? "default" : "outline"}
+              className={cn(
+                "rounded-lg text-sm transition-all shrink-0",
+                selectedYear === year 
+                  ? "shadow-md shadow-primary/20" 
+                  : "bg-card hover:bg-muted"
+              )}
+              onClick={() => setSelectedYear(year)}
+            >
+              {year}
+            </Button>
+          ))}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2 shrink-0">

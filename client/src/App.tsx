@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/Layout";
 import NotFound from "@/pages/not-found";
+import { NepaliDateDisplay } from "@/components/NepaliDateDisplay";
 
 import Employees from "@/pages/Employees";
 import LeaveReport from "@/pages/LeaveReport";
@@ -13,7 +14,9 @@ import Overall from "@/pages/Overall";
 
 function Router() {
   return (
-    <Layout>
+    <>
+      <NepaliDateDisplay />
+      <Layout>
       <Switch>
         <Route path="/">
           {/* Default redirect to overall */}
@@ -26,6 +29,7 @@ function Router() {
         <Route component={NotFound} />
       </Switch>
     </Layout>
+    </>
   );
 }
 

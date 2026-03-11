@@ -45,6 +45,7 @@ export class DatabaseStorage implements IStorage {
     const existing = await db.select().from(meals).where(
       and(
         eq(meals.employeeId, meal.employeeId),
+        eq(meals.nepaliYear, meal.nepaliYear),
         eq(meals.nepaliMonth, meal.nepaliMonth),
         eq(meals.day, meal.day)
       )

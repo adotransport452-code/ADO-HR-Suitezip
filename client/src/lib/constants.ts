@@ -13,6 +13,8 @@ export const NEPALI_MONTHS = [
   { value: 12, label: "Chaitra" },
 ];
 
+export const NEPALI_YEARS = Array.from({ length: 103 }, (_, i) => 2080 + i);
+
 const DAYS_OF_WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export const NEPALI_CALENDAR_2082 = {

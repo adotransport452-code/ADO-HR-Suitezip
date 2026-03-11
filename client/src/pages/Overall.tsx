@@ -21,13 +21,13 @@ export default function Overall() {
 
   const calculateLeavesPerMonth = (empId: number, month: number): number => {
     return (leaves ?? []).filter(
-      (l) => l.employeeId === empId && l.nepaliMonth === month
+      (l) => l.employeeId === empId && l.nepaliYear === selectedYear && l.nepaliMonth === month
     ).length;
   };
 
   const calculateMealExpense = (empId: number, month: number): number => {
     const mealRecords = (meals ?? []).filter(
-      (m) => m.employeeId === empId && m.nepaliMonth === month
+      (m) => m.employeeId === empId && m.nepaliYear === selectedYear && m.nepaliMonth === month
     );
     return mealRecords.reduce((total, record) => {
       const status = record.mealStatus as keyof typeof MEAL_RATES;
@@ -44,8 +44,8 @@ export default function Overall() {
           <h1 className="text-3xl font-display font-bold text-foreground">Overall Report</h1>
           <p className="text-muted-foreground mt-1 text-sm">Year {selectedYear} B.S. - Comprehensive view of all employee leaves and meal expenses.</p>
         </div>
-        <div className="flex gap-2">
-          {[2080, 2081, 2082, 2083, 2084].map((year) => (
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {Array.from({ length: 103 }, (_, i) => 2080 + i).map((year) => (
             <Button
               key={year}
               variant={selectedYear === year ? "default" : "outline"}

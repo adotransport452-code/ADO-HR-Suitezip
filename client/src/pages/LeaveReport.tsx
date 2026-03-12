@@ -133,7 +133,7 @@ export default function LeaveReport() {
             if (!dayInfo.isCurrentMonth) {
               return (
                 <div
-                  key={idx}
+                  key={`empty-${idx}`}
                   className="aspect-square p-2 rounded-lg bg-muted/30"
                 />
               );
@@ -144,7 +144,7 @@ export default function LeaveReport() {
             
             return (
               <button
-                key={day}
+                key={`day-${day}`}
                 onClick={() => {
                   if (dayLeaves.length > 0) {
                     setDetailDay(day);

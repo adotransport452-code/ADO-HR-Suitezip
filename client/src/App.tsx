@@ -7,9 +7,13 @@ import { Layout } from "@/components/Layout";
 import NotFound from "@/pages/not-found";
 import { NepaliDateDisplay } from "@/components/NepaliDateDisplay";
 
+import Dashboard from "@/pages/Dashboard";
 import Employees from "@/pages/Employees";
+import Attendance from "@/pages/Attendance";
+import Overtime from "@/pages/Overtime";
 import LeaveReport from "@/pages/LeaveReport";
 import MealExpenses from "@/pages/MealExpenses";
+import KitchenExpenses from "@/pages/KitchenExpenses";
 import Overall from "@/pages/Overall";
 
 function Router() {
@@ -17,18 +21,19 @@ function Router() {
     <>
       <NepaliDateDisplay />
       <Layout>
-      <Switch>
-        <Route path="/">
-          {/* Default redirect to overall */}
-          {() => <Redirect to="/overall" />}
-        </Route>
-        <Route path="/overall" component={Overall} />
-        <Route path="/employees" component={Employees} />
-        <Route path="/leaves" component={LeaveReport} />
-        <Route path="/meals" component={MealExpenses} />
-        <Route component={NotFound} />
-      </Switch>
-    </Layout>
+        <Switch>
+          <Route path="/">{() => <Redirect to="/dashboard" />}</Route>
+          <Route path="/dashboard" component={Dashboard} />
+          <Route path="/employees" component={Employees} />
+          <Route path="/attendance" component={Attendance} />
+          <Route path="/overtime" component={Overtime} />
+          <Route path="/leaves" component={LeaveReport} />
+          <Route path="/meals" component={MealExpenses} />
+          <Route path="/kitchen" component={KitchenExpenses} />
+          <Route path="/overall" component={Overall} />
+          <Route component={NotFound} />
+        </Switch>
+      </Layout>
     </>
   );
 }

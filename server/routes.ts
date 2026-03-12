@@ -1,127 +1,135 @@
 import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
-import { api } from "@shared/routes";
 import { z } from "zod";
 
-export async function registerRoutes(
-  httpServer: Server,
-  app: Express
-): Promise<Server> {
-
-  app.get(api.employees.list.path, async (req, res) => {
-    const data = await storage.getEmployees();
-    res.json(data);
+export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
+  // ─── Employees ───────────────────────────────────────────────
+  app.get("/api/employees", async (_req, res) => {
+    res.json(await storage.getEmployees());
   });
 
-  app.post(api.employees.create.path, async (req, res) => {
+  app.post("/api/employees", async (req, res) => {
     try {
-      const input = api.employees.create.input.parse(req.body);
-      const data = await storage.createEmployee(input);
+      const data = await storage.createEmployee(req.body);
       res.status(201).json(data);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      throw err;
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
     }
   });
 
-  app.delete(api.employees.delete.path, async (req, res) => {
+  app.patch("/api/employees/:id", async (req, res) => {
+    try {
+      const data = await storage.updateEmployee(Number(req.params.id), req.body);
+      res.json(data);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/employees/:id", async (req, res) => {
     await storage.deleteEmployee(Number(req.params.id));
     res.status(204).send();
   });
 
-  app.get(api.leaves.list.path, async (req, res) => {
-    const data = await storage.getLeaves();
-    res.json(data);
+  // ─── Leaves ──────────────────────────────────────────────────
+  app.get("/api/leaves", async (_req, res) => {
+    res.json(await storage.getLeaves());
   });
 
-  app.post(api.leaves.create.path, async (req, res) => {
+  app.post("/api/leaves", async (req, res) => {
     try {
-      const bodySchema = api.leaves.create.input.extend({
-        employeeId: z.coerce.number(),
-        nepaliMonth: z.coerce.number(),
-        day: z.coerce.number(),
-      });
-      const input = bodySchema.parse(req.body);
-      const data = await storage.createLeave(input);
+      const data = await storage.createLeave(req.body);
       res.status(201).json(data);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      throw err;
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
     }
   });
 
-  app.delete(api.leaves.delete.path, async (req, res) => {
+  app.delete("/api/leaves/:id", async (req, res) => {
     await storage.deleteLeave(Number(req.params.id));
     res.status(204).send();
   });
 
-  app.get(api.meals.list.path, async (req, res) => {
-    const data = await storage.getMeals();
-    res.json(data);
+  // ─── Meals ────────────────────────────────────────────────────
+  app.get("/api/meals", async (_req, res) => {
+    res.json(await storage.getMeals());
   });
 
-  app.post(api.meals.createOrUpdate.path, async (req, res) => {
+  app.post("/api/meals", async (req, res) => {
     try {
-      const bodySchema = api.meals.createOrUpdate.input.extend({
-        employeeId: z.coerce.number(),
-        nepaliMonth: z.coerce.number(),
-        day: z.coerce.number(),
-      });
-      const input = bodySchema.parse(req.body);
-      const data = await storage.setMeal(input);
+      const data = await storage.setMeal(req.body);
       res.status(201).json(data);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      throw err;
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
     }
   });
 
-  // Seed DB if empty
-  setTimeout(async () => {
+  // ─── Attendance ───────────────────────────────────────────────
+  app.get("/api/attendance", async (_req, res) => {
+    res.json(await storage.getAttendance());
+  });
+
+  app.post("/api/attendance", async (req, res) => {
     try {
-      const employees = await storage.getEmployees();
-      if (employees.length === 0) {
-        const emp1 = await storage.createEmployee({
-          employeeId: "EMP001",
-          name: "Ram Bahadur",
-          designation: "Manager",
-          department: "HR"
-        });
-        const emp2 = await storage.createEmployee({
-          employeeId: "EMP002",
-          name: "Sita Sharma",
-          designation: "Technician",
-          department: "Manufacturing"
-        });
-        await storage.createLeave({
-          employeeId: emp1.id,
-          nepaliMonth: 1, 
-          day: 5
-        });
-        await storage.setMeal({
-          employeeId: emp1.id,
-          nepaliMonth: 1,
-          day: 1,
-          mealStatus: "meal"
-        });
-        await storage.setMeal({
-          employeeId: emp2.id,
-          nepaliMonth: 1,
-          day: 1,
-          mealStatus: "none"
-        });
-      }
-    } catch (e) {
-      console.error("Failed to seed database:", e);
+      const data = await storage.setAttendance(req.body);
+      res.status(201).json(data);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
     }
-  }, 1000);
+  });
+
+  app.delete("/api/attendance/:id", async (req, res) => {
+    await storage.deleteAttendance(Number(req.params.id));
+    res.status(204).send();
+  });
+
+  // ─── Overtime ─────────────────────────────────────────────────
+  app.get("/api/overtime", async (_req, res) => {
+    res.json(await storage.getOvertime());
+  });
+
+  app.post("/api/overtime", async (req, res) => {
+    try {
+      const data = await storage.createOvertime(req.body);
+      res.status(201).json(data);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/overtime/:id", async (req, res) => {
+    await storage.deleteOvertime(Number(req.params.id));
+    res.status(204).send();
+  });
+
+  // ─── Kitchen Expenses ─────────────────────────────────────────
+  app.get("/api/kitchen-expenses", async (_req, res) => {
+    res.json(await storage.getKitchenExpenses());
+  });
+
+  app.post("/api/kitchen-expenses", async (req, res) => {
+    try {
+      const data = await storage.createKitchenExpense(req.body);
+      res.status(201).json(data);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/kitchen-expenses/:id", async (req, res) => {
+    try {
+      const data = await storage.updateKitchenExpense(Number(req.params.id), req.body);
+      res.json(data);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/api/kitchen-expenses/:id", async (req, res) => {
+    await storage.deleteKitchenExpense(Number(req.params.id));
+    res.status(204).send();
+  });
 
   return httpServer;
 }

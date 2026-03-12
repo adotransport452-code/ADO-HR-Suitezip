@@ -11,6 +11,7 @@ import Dashboard from "@/pages/Dashboard";
 import Employees from "@/pages/Employees";
 import Attendance from "@/pages/Attendance";
 import Overtime from "@/pages/Overtime";
+import OvertimeEmployeeDetail from "@/pages/OvertimeEmployeeDetail";
 import LeaveReport from "@/pages/LeaveReport";
 import MealExpenses from "@/pages/MealExpenses";
 import KitchenExpenses from "@/pages/KitchenExpenses";
@@ -27,6 +28,7 @@ function Router() {
           <Route path="/employees" component={Employees} />
           <Route path="/attendance" component={Attendance} />
           <Route path="/overtime" component={Overtime} />
+          <Route path="/overtime/employee/:id" component={OvertimeEmployeeDetail} />
           <Route path="/leaves" component={LeaveReport} />
           <Route path="/meals" component={MealExpenses} />
           <Route path="/kitchen" component={KitchenExpenses} />

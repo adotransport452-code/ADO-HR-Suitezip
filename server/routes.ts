@@ -98,6 +98,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  app.patch("/api/overtime/:id", async (req, res) => {
+    try {
+      const data = await storage.updateOvertime(Number(req.params.id), req.body);
+      res.json(data);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
   app.delete("/api/overtime/:id", async (req, res) => {
     await storage.deleteOvertime(Number(req.params.id));
     res.status(204).send();

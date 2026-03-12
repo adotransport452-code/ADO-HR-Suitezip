@@ -1,27 +1,51 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useEmployees } from "@/hooks/use-employees";
 import { useAttendance } from "@/hooks/use-attendance";
 import { useOvertime } from "@/hooks/use-overtime";
 import { useKitchenExpenses } from "@/hooks/use-kitchen";
-import { getCurrentNepaliDate } from "@/lib/nepaliDate";
 import { NEPALI_MONTHS } from "@/lib/constants";
-import { Users, CheckCircle, XCircle, Clock, UtensilsCrossed, TrendingUp, CalendarDays } from "lucide-react";
+import { getActiveNepaliDate, setActiveNepaliDate } from "@/lib/dateStore";
+import { getDaysInNepaliMonth } from "@/lib/nepaliDate";
+import { Users, CheckCircle, XCircle, Clock, UtensilsCrossed, TrendingUp, CalendarDays, Pencil, Check, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from "recharts";
 
 const PIE_COLORS = ["#22c55e", "#ef4444", "#f59e0b"];
+const DAYS_OF_WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function computeDayOfWeek(year: number, month: number, day: number): string {
+  // Reference: 2082-11-28 = Thursday (index 4)
+  const REF = { year: 2082, month: 11, day: 28, dow: 4 };
+  let totalDays = 0;
+  if (year === REF.year && month === REF.month) {
+    totalDays = day - REF.day;
+  } else {
+    // rough calculation
+    const refDayNum = REF.year * 365 + REF.month * 30 + REF.day;
+    const targetDayNum = year * 365 + month * 30 + day;
+    totalDays = targetDayNum - refDayNum;
+  }
+  const dow = ((REF.dow + totalDays) % 7 + 7) % 7;
+  return DAYS_OF_WEEK[dow];
+}
 
 export default function Dashboard() {
-  const today = getCurrentNepaliDate();
+  const [today, setToday] = useState(() => getActiveNepaliDate());
+  const [editing, setEditing] = useState(false);
+  const [editYear, setEditYear] = useState(today.year);
+  const [editMonth, setEditMonth] = useState(today.month);
+  const [editDay, setEditDay] = useState(today.day);
+
   const { data: employees } = useEmployees();
   const { data: attendance } = useAttendance();
   const { data: overtime } = useOvertime();
   const { data: kitchen } = useKitchenExpenses();
 
   const monthName = NEPALI_MONTHS.find(m => m.value === today.month)?.label ?? "";
-
   const totalEmployees = employees?.length ?? 0;
 
   const todayAttendance = attendance?.filter(
@@ -63,6 +87,21 @@ export default function Dashboard() {
     }).filter(d => d.Present + d.Absent + d["Half Day"] > 0) ?? [];
   }, [employees, attendance, today]);
 
+  const saveDate = () => {
+    const dow = computeDayOfWeek(editYear, editMonth, editDay);
+    const newDate = { year: editYear, month: editMonth, day: editDay, dayOfWeek: dow };
+    setActiveNepaliDate(newDate);
+    setToday(newDate);
+    setEditing(false);
+  };
+
+  const cancelEdit = () => {
+    setEditYear(today.year); setEditMonth(today.month); setEditDay(today.day);
+    setEditing(false);
+  };
+
+  const daysInEditMonth = getDaysInNepaliMonth(editYear, editMonth);
+
   const cards = [
     { label: "Total Employees", value: totalEmployees, icon: Users, color: "bg-blue-50 text-blue-700 border-blue-200" },
     { label: "Present Today", value: todayPresent, icon: CheckCircle, color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
@@ -74,18 +113,68 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-
       {/* Hero Date Banner */}
       <div className="bg-gradient-to-r from-primary to-primary/80 rounded-2xl p-6 text-primary-foreground shadow-lg shadow-primary/20">
-        <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center gap-3 mb-3">
           <CalendarDays className="w-6 h-6 opacity-80" />
-          <span className="text-sm font-medium opacity-80">Today's Date (Nepal)</span>
+          <span className="text-sm font-medium opacity-80">Today's Date (Nepal — Bikram Sambat)</span>
+          {!editing && (
+            <button onClick={() => { setEditYear(today.year); setEditMonth(today.month); setEditDay(today.day); setEditing(true); }}
+              className="ml-auto flex items-center gap-1.5 text-xs bg-primary-foreground/20 hover:bg-primary-foreground/30 transition-colors px-3 py-1.5 rounded-xl font-medium">
+              <Pencil className="w-3.5 h-3.5" /> Edit Date
+            </button>
+          )}
         </div>
-        <div className="text-4xl font-display font-bold tracking-tight">
-          {today.day} {monthName} {today.year} B.S.
-        </div>
-        <div className="text-lg opacity-80 mt-1 font-medium">{today.dayOfWeek}</div>
-        <div className="mt-3 text-sm opacity-70">Deego Textiles HR Portal · Overview of daily operations</div>
+
+        {editing ? (
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-3 items-end">
+              <div className="space-y-1">
+                <label className="text-xs opacity-70 font-medium">Year</label>
+                <Select value={editYear.toString()} onValueChange={v => { setEditYear(Number(v)); setEditDay(1); }}>
+                  <SelectTrigger className="w-28 rounded-xl bg-primary-foreground/20 border-primary-foreground/30 text-primary-foreground">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>{Array.from({ length: 103 }, (_, i) => 2080 + i).map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs opacity-70 font-medium">Month</label>
+                <Select value={editMonth.toString()} onValueChange={v => { setEditMonth(Number(v)); setEditDay(1); }}>
+                  <SelectTrigger className="w-36 rounded-xl bg-primary-foreground/20 border-primary-foreground/30 text-primary-foreground">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs opacity-70 font-medium">Day</label>
+                <Select value={editDay.toString()} onValueChange={v => setEditDay(Number(v))}>
+                  <SelectTrigger className="w-20 rounded-xl bg-primary-foreground/20 border-primary-foreground/30 text-primary-foreground">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>{Array.from({ length: daysInEditMonth }, (_, i) => i + 1).map(d => <SelectItem key={d} value={d.toString()}>{d}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={saveDate} className="flex items-center gap-1.5 text-sm bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl font-semibold transition-colors">
+                <Check className="w-4 h-4" /> Save Date
+              </button>
+              <button onClick={cancelEdit} className="flex items-center gap-1.5 text-sm bg-primary-foreground/20 hover:bg-primary-foreground/30 px-4 py-2 rounded-xl font-semibold transition-colors">
+                <X className="w-4 h-4" /> Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="text-4xl font-display font-bold tracking-tight">
+              {today.day} {monthName} {today.year} B.S.
+            </div>
+            <div className="text-lg opacity-80 mt-1 font-medium">{today.dayOfWeek}</div>
+            <div className="mt-3 text-sm opacity-60">Deego Textiles and Manufacturing Pvt. Ltd. · HR Portal</div>
+          </>
+        )}
       </div>
 
       {/* Summary Cards */}
@@ -101,7 +190,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Charts Row */}
+      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
           <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">

@@ -25,6 +25,7 @@ export interface IStorage {
 
   getOvertime(): Promise<any[]>;
   createOvertime(record: InsertOvertime): Promise<any>;
+  updateOvertime(id: number, record: Partial<InsertOvertime>): Promise<any>;
   deleteOvertime(id: number): Promise<void>;
 
   getKitchenExpenses(): Promise<any[]>;
@@ -116,6 +117,10 @@ export class DatabaseStorage implements IStorage {
   }
   async createOvertime(record: InsertOvertime) {
     const [res] = await db.insert(overtime).values(record).returning();
+    return res;
+  }
+  async updateOvertime(id: number, record: Partial<InsertOvertime>) {
+    const [res] = await db.update(overtime).set(record).where(eq(overtime.id, id)).returning();
     return res;
   }
   async deleteOvertime(id: number) {

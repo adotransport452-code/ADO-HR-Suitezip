@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useEmployees } from "@/hooks/use-employees";
 import { useOvertime, useCreateOvertime, useDeleteOvertime } from "@/hooks/use-overtime";
 import { NEPALI_MONTHS } from "@/lib/constants";
-import { getCurrentNepaliDate, getDaysInNepaliMonth } from "@/lib/nepaliDate";
+import { getActiveNepaliDate } from "@/lib/dateStore";
+import { getDaysInNepaliMonth } from "@/lib/nepaliDate";
 import { getMonthCalendar } from "@/lib/calendarUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Clock, Plus, Trash2, Settings, UserPlus } from "lucide-react";
+import { Clock, Plus, Trash2, Settings, UserPlus, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_OT_NAMES = [
@@ -23,7 +25,8 @@ const DEFAULT_OT_NAMES = [
 const OT_STORAGE_KEY = "ot_employee_ids";
 
 export default function Overtime() {
-  const today = getCurrentNepaliDate();
+  const today = getActiveNepaliDate();
+  const [, navigate] = useLocation();
   const [selectedYear, setSelectedYear] = useState(today.year);
   const [selectedMonth, setSelectedMonth] = useState(today.month);
   const [addOpen, setAddOpen] = useState(false);
@@ -44,7 +47,6 @@ export default function Overtime() {
   const calendarDays = getMonthCalendar(selectedYear, selectedMonth);
   const daysInMonth = getDaysInNepaliMonth(selectedYear, selectedMonth);
 
-  // OT employee IDs stored in localStorage
   const [otEmpIds, setOtEmpIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -53,9 +55,9 @@ export default function Overtime() {
     if (saved) {
       setOtEmpIds(new Set(JSON.parse(saved)));
     } else {
-      // Auto-detect by name matching
       const matched = employees
-        .filter(e => DEFAULT_OT_NAMES.some(n => n.toLowerCase() === e.name.toLowerCase() || e.name.toLowerCase().includes(n.toLowerCase().split(" ")[0])))
+        .filter(e => DEFAULT_OT_NAMES.some(n => n.toLowerCase() === e.name.toLowerCase() ||
+          e.name.toLowerCase().includes(n.toLowerCase().split(" ")[0])))
         .map(e => e.id);
       setOtEmpIds(new Set(matched));
     }
@@ -67,19 +69,10 @@ export default function Overtime() {
   };
 
   const otEmployees = employees?.filter(e => otEmpIds.has(e.id)) ?? [];
-
-  const monthRecords = overtimeData?.filter(
-    r => r.nepaliYear === selectedYear && r.nepaliMonth === selectedMonth
-  ) || [];
-
+  const monthRecords = overtimeData?.filter(r => r.nepaliYear === selectedYear && r.nepaliMonth === selectedMonth) || [];
   const totalHours = monthRecords.reduce((sum, r) => sum + parseFloat(r.overtimeHours || "0"), 0);
 
-  const getDayOfWeek = (day: number) => {
-    const found = calendarDays.find(d => d.day === day && d.isCurrentMonth);
-    return found?.dayOfWeek ?? "";
-  };
-
-  // Only Saturday days
+  const getDayOfWeek = (day: number) => calendarDays.find(d => d.day === day && d.isCurrentMonth)?.dayOfWeek ?? "";
   const saturdayDays = Array.from({ length: daysInMonth }, (_, i) => i + 1).filter(d => getDayOfWeek(d) === "Sat");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -103,6 +96,8 @@ export default function Overtime() {
     });
   };
 
+  const monthName = NEPALI_MONTHS.find(m => m.value === selectedMonth)?.label ?? "";
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -122,6 +117,7 @@ export default function Overtime() {
         </div>
       </div>
 
+      {/* Year/Month Selector */}
       <div className="flex flex-wrap gap-3 items-end">
         <div className="space-y-1">
           <label className="text-xs font-semibold text-muted-foreground">Year</label>
@@ -139,25 +135,42 @@ export default function Overtime() {
         </div>
       </div>
 
-      {/* OT Employee Cards */}
-      <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm">
-        <h3 className="font-bold text-foreground mb-3 flex items-center gap-2">
-          <Clock className="w-4 h-4 text-primary" /> Overtime Eligible Employees ({otEmployees.length})
-        </h3>
-        <div className="flex flex-wrap gap-2">
-          {otEmployees.map(emp => {
-            const empTotal = monthRecords.filter(r => r.employeeId === emp.id).reduce((s, r) => s + parseFloat(r.overtimeHours || "0"), 0);
-            return (
-              <div key={emp.id} className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-xl border border-border/50">
-                <span className="font-medium text-sm">{emp.name}</span>
-                {empTotal > 0 && <span className="text-xs text-primary font-bold">{empTotal}h</span>}
-              </div>
-            );
-          })}
-          {otEmployees.length === 0 && (
-            <p className="text-sm text-muted-foreground">No overtime employees configured. Click "Manage Employees" to add.</p>
-          )}
+      {/* OT Eligible Employees — Clickable */}
+      <div className="bg-card border border-border/50 rounded-2xl shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-border/50 font-semibold flex items-center gap-2">
+          <Clock className="w-4 h-4 text-primary" />
+          Overtime Eligible Employees ({otEmployees.length})
+          <span className="text-xs text-muted-foreground font-normal ml-1">Click to view individual records</span>
         </div>
+        {otEmployees.length === 0 ? (
+          <div className="p-6 text-center text-muted-foreground text-sm">No employees configured. Click "Manage Employees" to add.</div>
+        ) : (
+          <div className="divide-y divide-border/30">
+            {otEmployees.map(emp => {
+              const empTotal = monthRecords.filter(r => r.employeeId === emp.id)
+                .reduce((s, r) => s + parseFloat(r.overtimeHours || "0"), 0);
+              return (
+                <button key={emp.id}
+                  onClick={() => navigate(`/overtime/employee/${emp.id}`)}
+                  className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-muted/30 transition-all text-left group">
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
+                    {emp.name.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-foreground">{emp.name}</div>
+                    <div className="text-xs text-muted-foreground">{emp.designation} · {emp.department}</div>
+                  </div>
+                  {empTotal > 0 && (
+                    <span className="text-xs font-bold px-2.5 py-1 bg-primary/10 text-primary rounded-lg shrink-0">
+                      {empTotal.toFixed(1)} hrs
+                    </span>
+                  )}
+                  <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-muted-foreground shrink-0" />
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Summary */}
@@ -165,7 +178,7 @@ export default function Overtime() {
         <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5 flex items-center gap-3">
           <Clock className="w-8 h-8 text-primary" />
           <div>
-            <p className="text-xs text-muted-foreground font-medium">Total OT Hours (Month)</p>
+            <p className="text-xs text-muted-foreground font-medium">Total OT Hours — {monthName} {selectedYear}</p>
             <p className="text-2xl font-bold text-foreground">{totalHours.toFixed(1)} hrs</p>
           </div>
         </div>
@@ -180,14 +193,14 @@ export default function Overtime() {
 
       {/* Records Table */}
       <div className="bg-card border border-border/50 rounded-2xl shadow-sm overflow-hidden">
-        <div className="p-4 border-b font-semibold text-foreground">Monthly Overtime — {NEPALI_MONTHS.find(m => m.value === selectedMonth)?.label} {selectedYear}</div>
+        <div className="p-4 border-b font-semibold text-foreground">All Overtime Records — {monthName} {selectedYear}</div>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow className="hover:bg-transparent">
                 <TableHead className="font-semibold">Employee</TableHead>
                 <TableHead className="font-semibold">Department</TableHead>
-                <TableHead className="font-semibold">Day (Saturday)</TableHead>
+                <TableHead className="font-semibold">Day</TableHead>
                 <TableHead className="font-semibold">OT Hours</TableHead>
                 <TableHead className="font-semibold">Check-In</TableHead>
                 <TableHead className="font-semibold">Check-Out</TableHead>
@@ -205,7 +218,13 @@ export default function Overtime() {
                 const emp = employees?.find(e => e.id === rec.employeeId);
                 return (
                   <TableRow key={rec.id} className="hover:bg-muted/20">
-                    <TableCell className="font-semibold">{emp?.name ?? "Unknown"}<br /><span className="text-xs font-mono text-muted-foreground">{emp?.employeeId}</span></TableCell>
+                    <TableCell>
+                      <button onClick={() => navigate(`/overtime/employee/${rec.employeeId}`)}
+                        className="font-semibold text-left hover:text-primary transition-colors">
+                        {emp?.name ?? "Unknown"}
+                        <br /><span className="text-xs font-mono text-muted-foreground">{emp?.employeeId}</span>
+                      </button>
+                    </TableCell>
                     <TableCell className="text-sm">{emp?.department}</TableCell>
                     <TableCell className="text-sm font-medium">Day {rec.day} <span className="text-xs text-muted-foreground">({getDayOfWeek(rec.day)})</span></TableCell>
                     <TableCell><span className="font-bold text-primary">{rec.overtimeHours} hrs</span></TableCell>
@@ -214,7 +233,7 @@ export default function Overtime() {
                     <TableCell className="text-sm text-muted-foreground">{rec.remarks || "—"}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10"
-                        onClick={() => { if (confirm("Delete this record?")) deleteOvertime.mutate(rec.id); }}>
+                        onClick={() => { if (confirm("Delete?")) deleteOvertime.mutate(rec.id); }}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </TableCell>
@@ -226,7 +245,7 @@ export default function Overtime() {
         </div>
       </div>
 
-      {/* Add Overtime Dialog */}
+      {/* Add Dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="sm:max-w-[480px] rounded-2xl">
           <DialogHeader>
@@ -239,7 +258,8 @@ export default function Overtime() {
               <Select value={formEmpId} onValueChange={setFormEmpId}>
                 <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select employee..." /></SelectTrigger>
                 <SelectContent>
-                  {otEmployees.length > 0 ? otEmployees.map(e => <SelectItem key={e.id} value={e.id.toString()}>{e.name} ({e.employeeId})</SelectItem>)
+                  {otEmployees.length > 0
+                    ? otEmployees.map(e => <SelectItem key={e.id} value={e.id.toString()}>{e.name} ({e.employeeId})</SelectItem>)
                     : employees?.map(e => <SelectItem key={e.id} value={e.id.toString()}>{e.name} ({e.employeeId})</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -287,15 +307,14 @@ export default function Overtime() {
         <DialogContent className="sm:max-w-[500px] rounded-2xl max-h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-2xl font-display flex items-center gap-2"><UserPlus className="w-6 h-6 text-primary" /> Manage Overtime Employees</DialogTitle>
-            <p className="text-sm text-muted-foreground">Check/uncheck employees who are eligible for overtime.</p>
+            <p className="text-sm text-muted-foreground">Select employees eligible for overtime. Changes save instantly.</p>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto space-y-1.5 py-2">
             {employees?.map(emp => {
               const isOT = otEmpIds.has(emp.id);
               return (
-                <label key={emp.id}
-                  className={cn("flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all",
-                    isOT ? "bg-primary/10 border-primary/30" : "bg-card border-border/50 hover:bg-muted/20")}>
+                <label key={emp.id} className={cn("flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all",
+                  isOT ? "bg-primary/10 border-primary/30" : "bg-card border-border/50 hover:bg-muted/20")}>
                   <Checkbox checked={isOT} onCheckedChange={(checked) => {
                     const next = new Set(otEmpIds);
                     if (checked) next.add(emp.id); else next.delete(emp.id);

@@ -29,6 +29,20 @@ export function useCreateOvertime() {
   });
 }
 
+export function useUpdateOvertime() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertOvertime> }) => {
+      const res = await fetch(`${KEY}/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      if (!res.ok) throw new Error("Failed to update overtime");
+      return res.json();
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: [KEY] }); toast({ title: "Overtime updated" }); },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" })
+  });
+}
+
 export function useDeleteOvertime() {
   const qc = useQueryClient();
   const { toast } = useToast();

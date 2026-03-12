@@ -1,17 +1,15 @@
 import { useState, useEffect } from "react";
-import { getCurrentNepaliDate, formatNepaliDate } from "@/lib/nepaliDate";
+import { formatNepaliDate } from "@/lib/nepaliDate";
+import { getActiveNepaliDate } from "@/lib/dateStore";
 import { Calendar } from "lucide-react";
 
 export function NepaliDateDisplay() {
   const [dateString, setDateString] = useState("");
 
   useEffect(() => {
-    const updateDate = () => {
-      const nepaliDate = getCurrentNepaliDate();
-      setDateString(formatNepaliDate(nepaliDate));
-    };
-    updateDate();
-    const interval = setInterval(updateDate, 60000);
+    const update = () => setDateString(formatNepaliDate(getActiveNepaliDate()));
+    update();
+    const interval = setInterval(update, 30000);
     return () => clearInterval(interval);
   }, []);
 

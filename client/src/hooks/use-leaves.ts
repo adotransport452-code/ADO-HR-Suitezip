@@ -3,6 +3,8 @@ import { api, buildUrl } from "@shared/routes";
 import type { Leave, InsertLeave } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
+const ATT_KEY = "/api/attendance";
+
 export function useLeaves() {
   return useQuery({
     queryKey: [api.leaves.list.path],
@@ -29,13 +31,46 @@ export function useCreateLeave() {
         const error = await res.json().catch(() => ({ message: "Failed to log leave" }));
         throw new Error(error.message);
       }
-      return res.json();
+      const leave = await res.json();
+
+      // Auto-sync: mark as absent in attendance (only if no record exists)
+      try {
+        const attRes = await fetch(ATT_KEY);
+        if (attRes.ok) {
+          const allAtt: any[] = await attRes.json();
+          const exists = allAtt.some(a =>
+            a.employeeId === data.employeeId &&
+            a.nepaliYear === data.nepaliYear &&
+            a.nepaliMonth === data.nepaliMonth &&
+            a.day === data.day
+          );
+          if (!exists) {
+            await fetch(ATT_KEY, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                employeeId: data.employeeId,
+                nepaliYear: data.nepaliYear,
+                nepaliMonth: data.nepaliMonth,
+                day: data.day,
+                status: "absent",
+                checkInTime: null,
+                checkOutTime: null,
+                remarks: "Auto-marked: Leave taken"
+              })
+            });
+          }
+        }
+      } catch {}
+
+      return leave;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.leaves.list.path] });
-      toast({ title: "Leave Added", description: "Employee leave registered successfully." });
+      queryClient.invalidateQueries({ queryKey: [ATT_KEY] });
+      toast({ title: "Leave Added", description: "Employee marked as absent in attendance automatically." });
     },
-    onError: (err) => {
+    onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
   });

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useKitchenExpenses, useCreateKitchenExpense, useDeleteKitchenExpense } from "@/hooks/use-kitchen";
 import { NEPALI_MONTHS } from "@/lib/constants";
 import { getCurrentNepaliDate, getDaysInNepaliMonth } from "@/lib/nepaliDate";
@@ -13,10 +13,10 @@ export default function KitchenExpenses() {
   const today = getCurrentNepaliDate();
   const [selectedYear, setSelectedYear] = useState(today.year);
   const [selectedMonth, setSelectedMonth] = useState(today.month);
+  const [selectedDay, setSelectedDay] = useState<string>("all");
   const [addOpen, setAddOpen] = useState(false);
   const [filterItem, setFilterItem] = useState("");
 
-  const [formDay, setFormDay] = useState(today.day.toString());
   const [formItemName, setFormItemName] = useState("");
   const [formQuantity, setFormQuantity] = useState("");
   const [formAmount, setFormAmount] = useState("");
@@ -34,38 +34,30 @@ export default function KitchenExpenses() {
     e => e.nepaliYear === selectedYear && e.nepaliMonth === selectedMonth
   ) || [];
 
+  const dayExpenses = selectedDay === "all"
+    ? monthExpenses
+    : monthExpenses.filter(e => e.day === Number(selectedDay));
+
   const filteredExpenses = filterItem
-    ? monthExpenses.filter(e => e.itemName.toLowerCase().includes(filterItem.toLowerCase()))
-    : monthExpenses;
+    ? dayExpenses.filter(e => e.itemName.toLowerCase().includes(filterItem.toLowerCase()))
+    : dayExpenses;
 
   const totalMonth = monthExpenses.reduce((sum, e) => sum + e.amount, 0);
-
-  const totalByDay = useMemo(() => {
-    const map = new Map<number, number>();
-    monthExpenses.forEach(e => {
-      map.set(e.day, (map.get(e.day) ?? 0) + e.amount);
-    });
-    return map;
-  }, [monthExpenses]);
+  const totalDay = dayExpenses.reduce((sum, e) => sum + e.amount, 0);
 
   const totalByItem = useMemo(() => {
     const map = new Map<string, number>();
-    monthExpenses.forEach(e => {
-      map.set(e.itemName, (map.get(e.itemName) ?? 0) + e.amount);
-    });
+    monthExpenses.forEach(e => { map.set(e.itemName, (map.get(e.itemName) ?? 0) + e.amount); });
     return map;
   }, [monthExpenses]);
 
-  // Auto-suggest previous price for known items
   const knownItems = useMemo(() => {
     const map = new Map<string, number>();
     expenses?.forEach(e => { map.set(e.itemName.toLowerCase(), e.amount); });
     return map;
   }, [expenses]);
 
-  const uniqueItemNames = useMemo(() => {
-    return [...new Set(expenses?.map(e => e.itemName) ?? [])];
-  }, [expenses]);
+  const uniqueItemNames = useMemo(() => [...new Set(expenses?.map(e => e.itemName) ?? [])], [expenses]);
 
   const handleItemNameChange = (val: string) => {
     setFormItemName(val);
@@ -73,8 +65,6 @@ export default function KitchenExpenses() {
       const matches = uniqueItemNames.filter(n => n.toLowerCase().includes(val.toLowerCase()));
       setSuggestions(matches);
       setShowSuggestions(matches.length > 0);
-
-      // Auto-fill amount if known item
       const knownPrice = knownItems.get(val.toLowerCase());
       if (knownPrice !== undefined) setFormAmount(knownPrice.toString());
     } else {
@@ -91,11 +81,13 @@ export default function KitchenExpenses() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formDay || !formItemName || !formAmount) return;
+    if (!formItemName || !formAmount) return;
+    // Use selected day filter if specific day is set, else today
+    const dayNum = selectedDay !== "all" ? Number(selectedDay) : today.day;
     createExpense.mutate({
       nepaliYear: selectedYear,
       nepaliMonth: selectedMonth,
-      day: Number(formDay),
+      day: dayNum,
       itemName: formItemName,
       quantity: formQuantity || null,
       amount: Number(formAmount),
@@ -113,13 +105,16 @@ export default function KitchenExpenses() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground">Kitchen Expenses</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Track daily kitchen and food expenses with auto-suggestions.</p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {today.dayOfWeek}, {today.day} {NEPALI_MONTHS.find(m => m.value === today.month)?.label} {today.year} B.S.
+          </p>
         </div>
         <Button onClick={() => setAddOpen(true)} className="rounded-xl shadow-lg shadow-primary/20">
           <Plus className="w-4 h-4 mr-2" /> Add Expense
         </Button>
       </div>
 
+      {/* Filters - Year, Month, Day */}
       <div className="flex flex-wrap gap-3 items-end">
         <div className="space-y-1">
           <label className="text-xs font-semibold text-muted-foreground">Year</label>
@@ -130,9 +125,19 @@ export default function KitchenExpenses() {
         </div>
         <div className="space-y-1">
           <label className="text-xs font-semibold text-muted-foreground">Month</label>
-          <Select value={selectedMonth.toString()} onValueChange={v => setSelectedMonth(Number(v))}>
+          <Select value={selectedMonth.toString()} onValueChange={v => { setSelectedMonth(Number(v)); setSelectedDay("all"); }}>
             <SelectTrigger className="w-36 rounded-xl"><SelectValue /></SelectTrigger>
             <SelectContent>{NEPALI_MONTHS.map(m => <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-semibold text-muted-foreground">Day</label>
+          <Select value={selectedDay} onValueChange={setSelectedDay}>
+            <SelectTrigger className="w-28 rounded-xl"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Days</SelectItem>
+              {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => <SelectItem key={d} value={d.toString()}>Day {d}</SelectItem>)}
+            </SelectContent>
           </Select>
         </div>
         <div className="space-y-1">
@@ -148,16 +153,16 @@ export default function KitchenExpenses() {
           <p className="text-2xl font-bold text-foreground mt-1">Rs. {totalMonth.toLocaleString()}</p>
         </div>
         <div className="bg-card border border-border/50 rounded-2xl p-5">
-          <p className="text-xs text-muted-foreground font-medium">Unique Items</p>
-          <p className="text-2xl font-bold text-foreground mt-1">{totalByItem.size}</p>
+          <p className="text-xs text-muted-foreground font-medium">{selectedDay === "all" ? "Unique Items (Month)" : `Total Day ${selectedDay}`}</p>
+          <p className="text-2xl font-bold text-foreground mt-1">{selectedDay === "all" ? totalByItem.size : `Rs. ${totalDay.toLocaleString()}`}</p>
         </div>
         <div className="bg-card border border-border/50 rounded-2xl p-5">
-          <p className="text-xs text-muted-foreground font-medium">Total Records</p>
-          <p className="text-2xl font-bold text-foreground mt-1">{monthExpenses.length}</p>
+          <p className="text-xs text-muted-foreground font-medium">Showing Records</p>
+          <p className="text-2xl font-bold text-foreground mt-1">{filteredExpenses.length}</p>
         </div>
       </div>
 
-      {/* Top Items */}
+      {/* Item breakdown */}
       {totalByItem.size > 0 && (
         <div className="bg-card border border-border/50 rounded-2xl p-5">
           <h3 className="font-semibold mb-3 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-primary" /> Expenses by Item (This Month)</h3>
@@ -189,7 +194,7 @@ export default function KitchenExpenses() {
               {filteredExpenses.length === 0 ? (
                 <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                   <UtensilsCrossed className="w-12 h-12 mb-2 mx-auto text-muted" />
-                  No kitchen expenses recorded this month.
+                  No kitchen expenses for the selected period.
                 </TableCell></TableRow>
               ) : filteredExpenses.map(exp => (
                 <TableRow key={exp.id} className="hover:bg-muted/20">
@@ -200,7 +205,7 @@ export default function KitchenExpenses() {
                   <TableCell className="text-sm text-muted-foreground">{exp.remarks || "—"}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10"
-                      onClick={() => { if (confirm("Delete this expense?")) deleteExpense.mutate(exp.id); }}>
+                      onClick={() => { if (confirm("Delete?")) deleteExpense.mutate(exp.id); }}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </TableCell>
@@ -208,8 +213,12 @@ export default function KitchenExpenses() {
               ))}
               {filteredExpenses.length > 0 && (
                 <TableRow className="bg-muted/30 font-bold">
-                  <TableCell colSpan={3} className="text-right">Monthly Total:</TableCell>
-                  <TableCell className="text-primary text-base">Rs. {totalMonth.toLocaleString()}</TableCell>
+                  <TableCell colSpan={3} className="text-right pr-6">
+                    {selectedDay !== "all" ? `Day ${selectedDay} Total:` : "Monthly Total:"}
+                  </TableCell>
+                  <TableCell className="text-primary text-base">
+                    Rs. {(selectedDay !== "all" ? totalDay : totalMonth).toLocaleString()}
+                  </TableCell>
                   <TableCell colSpan={2} />
                 </TableRow>
               )}
@@ -218,20 +227,16 @@ export default function KitchenExpenses() {
         </div>
       </div>
 
-      {/* Add Dialog */}
+      {/* Add Dialog - No Day selector */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="sm:max-w-[460px] rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-display">Add Kitchen Expense</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Adding for: {selectedDay !== "all" ? `Day ${selectedDay}` : `Day ${today.day}`} · {NEPALI_MONTHS.find(m => m.value === selectedMonth)?.label} {selectedYear}
+            </p>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold">Day *</label>
-              <Select value={formDay} onValueChange={setFormDay}>
-                <SelectTrigger className="rounded-xl"><SelectValue placeholder="Day..." /></SelectTrigger>
-                <SelectContent>{Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => <SelectItem key={d} value={d.toString()}>Day {d}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
             <div className="space-y-1.5 relative">
               <label className="text-sm font-semibold">Item Name * <span className="text-xs text-muted-foreground font-normal">(auto-suggests previous price)</span></label>
               <Input
@@ -267,7 +272,7 @@ export default function KitchenExpenses() {
               <label className="text-sm font-semibold">Remarks</label>
               <Input placeholder="Optional..." value={formRemarks} onChange={e => setFormRemarks(e.target.value)} className="rounded-xl" />
             </div>
-            <Button type="submit" className="w-full rounded-xl" disabled={!formDay || !formItemName || !formAmount || createExpense.isPending}>
+            <Button type="submit" className="w-full rounded-xl" disabled={!formItemName || !formAmount || createExpense.isPending}>
               {createExpense.isPending ? "Saving..." : "Add Expense"}
             </Button>
           </form>

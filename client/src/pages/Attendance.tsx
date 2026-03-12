@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useEmployees } from "@/hooks/use-employees";
 import { useAttendance, useSetAttendance, useDeleteAttendance } from "@/hooks/use-attendance";
 import { NEPALI_MONTHS } from "@/lib/constants";
@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ClipboardList, Plus, Trash2, Filter, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ClipboardList, Plus, Trash2, CheckCircle, XCircle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type AttendanceStatus = "present" | "absent" | "half_day";
@@ -27,11 +28,11 @@ export default function Attendance() {
   const [selectedYear, setSelectedYear] = useState(today.year);
   const [selectedMonth, setSelectedMonth] = useState(today.month);
   const [selectedDay, setSelectedDay] = useState(today.day);
-  const [filterEmp, setFilterEmp] = useState("all");
   const [filterDept, setFilterDept] = useState("all");
   const [addOpen, setAddOpen] = useState(false);
 
-  const [formEmpId, setFormEmpId] = useState("");
+  // Multi-select state
+  const [selectedEmps, setSelectedEmps] = useState<Set<number>>(new Set());
   const [formStatus, setFormStatus] = useState<AttendanceStatus>("present");
   const [formCheckIn, setFormCheckIn] = useState("");
   const [formCheckOut, setFormCheckOut] = useState("");
@@ -39,7 +40,7 @@ export default function Attendance() {
 
   const { data: employees } = useEmployees();
   const { data: attendance } = useAttendance();
-  const setAttendance = useSetAttendance();
+  const setAttendanceMutation = useSetAttendance();
   const deleteAttendance = useDeleteAttendance();
 
   const daysInMonth = getDaysInNepaliMonth(selectedYear, selectedMonth);
@@ -50,7 +51,6 @@ export default function Attendance() {
 
   const filteredRecords = dayRecords.filter(r => {
     const emp = employees?.find(e => e.id === r.employeeId);
-    if (filterEmp !== "all" && r.employeeId !== Number(filterEmp)) return false;
     if (filterDept !== "all" && emp?.department !== filterDept) return false;
     return true;
   });
@@ -61,45 +61,67 @@ export default function Attendance() {
 
   const departments = [...new Set(employees?.map(e => e.department) ?? [])];
 
-  const selectedEmp = employees?.find(e => e.id === Number(formEmpId));
+  const alreadyMarked = (empId: number) => dayRecords.some(r => r.employeeId === empId);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formEmpId) return;
-    setAttendance.mutate({
-      employeeId: Number(formEmpId),
-      nepaliYear: selectedYear,
-      nepaliMonth: selectedMonth,
-      day: selectedDay,
-      status: formStatus,
-      checkInTime: formCheckIn || null,
-      checkOutTime: formCheckOut || null,
-      remarks: formRemarks || null
-    }, {
-      onSuccess: () => {
-        setAddOpen(false);
-        setFormEmpId(""); setFormStatus("present");
-        setFormCheckIn(""); setFormCheckOut(""); setFormRemarks("");
-      }
+  const toggleEmployee = (empId: number) => {
+    if (alreadyMarked(empId)) return;
+    setSelectedEmps(prev => {
+      const next = new Set(prev);
+      if (next.has(empId)) next.delete(empId); else next.add(empId);
+      return next;
     });
   };
 
-  const alreadyMarked = (empId: string) =>
-    dayRecords.some(r => r.employeeId === Number(empId));
+  const selectAll = () => {
+    const unmarked = employees?.filter(e => !alreadyMarked(e.id)).map(e => e.id) ?? [];
+    setSelectedEmps(new Set(unmarked));
+  };
+
+  const clearAll = () => setSelectedEmps(new Set());
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedEmps.size === 0) return;
+    let saved = 0;
+    selectedEmps.forEach(empId => {
+      setAttendanceMutation.mutate({
+        employeeId: empId,
+        nepaliYear: selectedYear,
+        nepaliMonth: selectedMonth,
+        day: selectedDay,
+        status: formStatus,
+        checkInTime: formCheckIn || null,
+        checkOutTime: formCheckOut || null,
+        remarks: formRemarks || null
+      }, {
+        onSuccess: () => {
+          saved++;
+          if (saved === selectedEmps.size) {
+            setAddOpen(false);
+            setSelectedEmps(new Set());
+            setFormStatus("present");
+            setFormCheckIn(""); setFormCheckOut(""); setFormRemarks("");
+          }
+        }
+      });
+    });
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground">Attendance</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Track daily employee attendance with check-in/out times.</p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {today.dayOfWeek}, {today.day} {NEPALI_MONTHS.find(m => m.value === today.month)?.label} {today.year} B.S.
+          </p>
         </div>
         <Button onClick={() => setAddOpen(true)} className="rounded-xl shadow-lg shadow-primary/20">
           <Plus className="w-4 h-4 mr-2" /> Mark Attendance
         </Button>
       </div>
 
-      {/* Year/Month/Day Selector */}
+      {/* Filters */}
       <div className="flex flex-wrap gap-3 items-end">
         <div className="space-y-1">
           <label className="text-xs font-semibold text-muted-foreground">Year</label>
@@ -125,9 +147,9 @@ export default function Attendance() {
         <div className="space-y-1">
           <label className="text-xs font-semibold text-muted-foreground">Department</label>
           <Select value={filterDept} onValueChange={setFilterDept}>
-            <SelectTrigger className="w-40 rounded-xl"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-44 rounded-xl"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Depts</SelectItem>
+              <SelectItem value="all">All Departments</SelectItem>
               {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -170,7 +192,7 @@ export default function Attendance() {
               {filteredRecords.length === 0 ? (
                 <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                   <ClipboardList className="w-12 h-12 mb-2 mx-auto text-muted" />
-                  No attendance records for this day. Mark attendance to begin.
+                  No attendance records for this day.
                 </TableCell></TableRow>
               ) : filteredRecords.map(rec => {
                 const emp = employees?.find(e => e.id === rec.employeeId);
@@ -201,35 +223,20 @@ export default function Attendance() {
         </div>
       </div>
 
-      {/* Mark Attendance Dialog */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="sm:max-w-[480px] rounded-2xl">
+      {/* Mark Attendance Dialog - Multi-Select */}
+      <Dialog open={addOpen} onOpenChange={(v) => { setAddOpen(v); if (!v) { setSelectedEmps(new Set()); } }}>
+        <DialogContent className="sm:max-w-[560px] rounded-2xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-2xl font-display">Mark Attendance</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Day {selectedDay} · {NEPALI_MONTHS.find(m => m.value === selectedMonth)?.label} {selectedYear} B.S.
+            </p>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold">Employee *</label>
-              <Select value={formEmpId} onValueChange={setFormEmpId}>
-                <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select employee..." /></SelectTrigger>
-                <SelectContent>
-                  {employees?.map(e => (
-                    <SelectItem key={e.id} value={e.id.toString()} disabled={alreadyMarked(e.id.toString())}>
-                      {e.name} ({e.employeeId}) {alreadyMarked(e.id.toString()) ? "✓" : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {selectedEmp && (
-              <div className="flex gap-2 p-3 bg-muted/50 rounded-xl text-sm">
-                <span className="text-muted-foreground">{selectedEmp.designation}</span>
-                <span>•</span>
-                <span className="text-muted-foreground">{selectedEmp.department}</span>
-              </div>
-            )}
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold">Status *</label>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-2 overflow-hidden">
+
+            {/* Status Selector */}
+            <div className="space-y-1.5 shrink-0">
+              <label className="text-sm font-semibold">Attendance Status *</label>
               <div className="flex gap-2">
                 {(["present", "absent", "half_day"] as AttendanceStatus[]).map(s => (
                   <button type="button" key={s} onClick={() => setFormStatus(s)}
@@ -240,7 +247,9 @@ export default function Attendance() {
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+
+            {/* Time & Remarks */}
+            <div className="grid grid-cols-2 gap-3 shrink-0">
               <div className="space-y-1.5">
                 <label className="text-sm font-semibold">Check-In Time</label>
                 <Input type="time" value={formCheckIn} onChange={e => setFormCheckIn(e.target.value)} className="rounded-xl" />
@@ -250,12 +259,61 @@ export default function Attendance() {
                 <Input type="time" value={formCheckOut} onChange={e => setFormCheckOut(e.target.value)} className="rounded-xl" />
               </div>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 shrink-0">
               <label className="text-sm font-semibold">Remarks</label>
-              <Input placeholder="Optional remarks..." value={formRemarks} onChange={e => setFormRemarks(e.target.value)} className="rounded-xl" />
+              <Input placeholder="Optional..." value={formRemarks} onChange={e => setFormRemarks(e.target.value)} className="rounded-xl" />
             </div>
-            <Button type="submit" className="w-full rounded-xl" disabled={!formEmpId || setAttendance.isPending}>
-              {setAttendance.isPending ? "Saving..." : "Save Attendance"}
+
+            {/* Employee Multi-Select */}
+            <div className="space-y-2 shrink-0">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold">Select Employees ({selectedEmps.size} selected)</label>
+                <div className="flex gap-2">
+                  <button type="button" onClick={selectAll} className="text-xs text-primary hover:underline">Select All</button>
+                  <span className="text-muted-foreground">·</span>
+                  <button type="button" onClick={clearAll} className="text-xs text-muted-foreground hover:underline">Clear</button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-1.5 min-h-0 max-h-64 pr-1">
+              {employees?.map(emp => {
+                const marked = alreadyMarked(emp.id);
+                const markedRecord = dayRecords.find(r => r.employeeId === emp.id);
+                const isSelected = selectedEmps.has(emp.id);
+                return (
+                  <label key={emp.id}
+                    className={cn(
+                      "flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all select-none",
+                      marked
+                        ? "bg-muted/40 border-border/40 opacity-70 cursor-not-allowed"
+                        : isSelected
+                        ? "bg-primary/10 border-primary/40"
+                        : "bg-card border-border/50 hover:bg-muted/20"
+                    )}
+                  >
+                    <Checkbox
+                      checked={isSelected}
+                      disabled={marked}
+                      onCheckedChange={() => toggleEmployee(emp.id)}
+                      className="shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm text-foreground truncate">{emp.name}</div>
+                      <div className="text-xs text-muted-foreground">{emp.designation} · {emp.department}</div>
+                    </div>
+                    {marked && markedRecord && (
+                      <span className={cn("px-2 py-0.5 rounded-md text-xs font-semibold shrink-0", STATUS_COLORS[markedRecord.status as AttendanceStatus])}>
+                        {STATUS_LABEL[markedRecord.status as AttendanceStatus]}
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+
+            <Button type="submit" className="w-full rounded-xl shrink-0" disabled={selectedEmps.size === 0 || setAttendanceMutation.isPending}>
+              {setAttendanceMutation.isPending ? "Saving..." : `Mark ${selectedEmps.size} Employee${selectedEmps.size !== 1 ? "s" : ""}`}
             </Button>
           </form>
         </DialogContent>

@@ -5,7 +5,7 @@ import { useOvertime } from "@/hooks/use-overtime";
 import { useKitchenExpenses } from "@/hooks/use-kitchen";
 import { getCurrentNepaliDate } from "@/lib/nepaliDate";
 import { NEPALI_MONTHS } from "@/lib/constants";
-import { Users, CheckCircle, XCircle, Clock, UtensilsCrossed, TrendingUp } from "lucide-react";
+import { Users, CheckCircle, XCircle, Clock, UtensilsCrossed, TrendingUp, CalendarDays } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
@@ -20,42 +20,35 @@ export default function Dashboard() {
   const { data: overtime } = useOvertime();
   const { data: kitchen } = useKitchenExpenses();
 
+  const monthName = NEPALI_MONTHS.find(m => m.value === today.month)?.label ?? "";
+
   const totalEmployees = employees?.length ?? 0;
 
-  // Today's attendance
   const todayAttendance = attendance?.filter(
     r => r.nepaliYear === today.year && r.nepaliMonth === today.month && r.day === today.day
   ) ?? [];
   const todayPresent = todayAttendance.filter(r => r.status === "present").length;
   const todayAbsent = todayAttendance.filter(r => r.status === "absent").length;
+  const todayHalfDay = todayAttendance.filter(r => r.status === "half_day").length;
 
-  // This month's overtime
-  const monthOT = overtime?.filter(
-    r => r.nepaliYear === today.year && r.nepaliMonth === today.month
-  ) ?? [];
+  const monthOT = overtime?.filter(r => r.nepaliYear === today.year && r.nepaliMonth === today.month) ?? [];
   const totalOTHours = monthOT.reduce((sum, r) => sum + parseFloat(r.overtimeHours || "0"), 0);
 
-  // This month's kitchen expenses
-  const monthKitchen = kitchen?.filter(
-    r => r.nepaliYear === today.year && r.nepaliMonth === today.month
-  ) ?? [];
+  const monthKitchen = kitchen?.filter(r => r.nepaliYear === today.year && r.nepaliMonth === today.month) ?? [];
   const totalKitchen = monthKitchen.reduce((sum, r) => sum + r.amount, 0);
 
-  // Attendance pie chart data (today)
   const pieData = [
     { name: "Present", value: todayPresent },
     { name: "Absent", value: todayAbsent },
-    { name: "Half Day", value: todayAttendance.filter(r => r.status === "half_day").length }
+    { name: "Half Day", value: todayHalfDay }
   ].filter(d => d.value > 0);
 
-  // Monthly kitchen expenses bar chart (by day)
   const kitchenBarData = useMemo(() => {
     const dayMap = new Map<number, number>();
     monthKitchen.forEach(r => dayMap.set(r.day, (dayMap.get(r.day) ?? 0) + r.amount));
     return [...dayMap.entries()].sort((a, b) => a[0] - b[0]).map(([day, amount]) => ({ day: `D${day}`, amount }));
   }, [monthKitchen]);
 
-  // Monthly attendance bar chart (per employee)
   const attendBarData = useMemo(() => {
     return employees?.map(emp => {
       const empRec = attendance?.filter(
@@ -67,36 +60,42 @@ export default function Dashboard() {
         Absent: empRec.filter(r => r.status === "absent").length,
         "Half Day": empRec.filter(r => r.status === "half_day").length,
       };
-    }) ?? [];
+    }).filter(d => d.Present + d.Absent + d["Half Day"] > 0) ?? [];
   }, [employees, attendance, today]);
 
-  const monthName = NEPALI_MONTHS.find(m => m.value === today.month)?.label ?? "";
-
   const cards = [
-    { label: "Total Employees", value: totalEmployees, icon: Users, color: "bg-blue-50 text-blue-600 border-blue-200" },
-    { label: "Today Present", value: todayPresent, icon: CheckCircle, color: "bg-emerald-50 text-emerald-600 border-emerald-200" },
-    { label: "Today Absent", value: todayAbsent, icon: XCircle, color: "bg-red-50 text-red-600 border-red-200" },
-    { label: `OT Hours (${monthName})`, value: `${totalOTHours.toFixed(1)} hrs`, icon: Clock, color: "bg-violet-50 text-violet-600 border-violet-200" },
-    { label: `Kitchen Exp. (${monthName})`, value: `Rs. ${totalKitchen.toLocaleString()}`, icon: UtensilsCrossed, color: "bg-amber-50 text-amber-600 border-amber-200" },
+    { label: "Total Employees", value: totalEmployees, icon: Users, color: "bg-blue-50 text-blue-700 border-blue-200" },
+    { label: "Present Today", value: todayPresent, icon: CheckCircle, color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+    { label: "Absent Today", value: todayAbsent, icon: XCircle, color: "bg-red-50 text-red-700 border-red-200" },
+    { label: "Half Day Today", value: todayHalfDay, icon: Clock, color: "bg-amber-50 text-amber-700 border-amber-200" },
+    { label: `OT Hours (${monthName})`, value: `${totalOTHours.toFixed(1)} hrs`, icon: Clock, color: "bg-violet-50 text-violet-700 border-violet-200" },
+    { label: `Kitchen (${monthName})`, value: `Rs. ${totalKitchen.toLocaleString()}`, icon: UtensilsCrossed, color: "bg-orange-50 text-orange-700 border-orange-200" },
   ];
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-display font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          {today.dayOfWeek}, {today.day} {monthName} {today.year} B.S. — Overview of operations
-        </p>
+
+      {/* Hero Date Banner */}
+      <div className="bg-gradient-to-r from-primary to-primary/80 rounded-2xl p-6 text-primary-foreground shadow-lg shadow-primary/20">
+        <div className="flex items-center gap-3 mb-2">
+          <CalendarDays className="w-6 h-6 opacity-80" />
+          <span className="text-sm font-medium opacity-80">Today's Date (Nepal)</span>
+        </div>
+        <div className="text-4xl font-display font-bold tracking-tight">
+          {today.day} {monthName} {today.year} B.S.
+        </div>
+        <div className="text-lg opacity-80 mt-1 font-medium">{today.dayOfWeek}</div>
+        <div className="mt-3 text-sm opacity-70">Deego Textiles HR Portal · Overview of daily operations</div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {cards.map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className={`border rounded-2xl p-5 flex flex-col gap-3 ${color}`}>
-            <Icon className="w-7 h-7" />
+          <div key={label} className={`border rounded-2xl p-4 flex flex-col gap-2 ${color}`}>
+            <Icon className="w-6 h-6" />
             <div>
-              <p className="text-xs font-medium opacity-80">{label}</p>
-              <p className="text-2xl font-bold mt-0.5">{value}</p>
+              <p className="text-xs font-medium opacity-80 leading-tight">{label}</p>
+              <p className="text-xl font-bold mt-0.5">{value}</p>
             </div>
           </div>
         ))}
@@ -104,15 +103,12 @@ export default function Dashboard() {
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Attendance Summary Pie */}
         <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
           <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
-            <CheckCircle className="w-5 h-5 text-emerald-500" /> Today's Attendance
+            <CheckCircle className="w-5 h-5 text-emerald-500" /> Today's Attendance — {today.dayOfWeek}, {today.day} {monthName}
           </h3>
           {pieData.length === 0 ? (
-            <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
-              No attendance marked today.
-            </div>
+            <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">No attendance marked today.</div>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
@@ -126,15 +122,12 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Monthly Kitchen Expenses Bar */}
         <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
           <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
             <UtensilsCrossed className="w-5 h-5 text-amber-500" /> Kitchen Expenses — {monthName} {today.year}
           </h3>
           {kitchenBarData.length === 0 ? (
-            <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
-              No kitchen expenses this month.
-            </div>
+            <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">No kitchen expenses this month.</div>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={kitchenBarData}>
@@ -149,16 +142,15 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Attendance per Employee (Month) */}
       {attendBarData.length > 0 && (
         <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
           <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-primary" /> Monthly Attendance — {monthName} {today.year}
           </h3>
           <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={attendBarData} barSize={18}>
+            <BarChart data={attendBarData} barSize={16}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
               <Tooltip />
               <Legend />

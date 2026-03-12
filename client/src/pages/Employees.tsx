@@ -3,8 +3,9 @@ import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeleteEmployee }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, Plus, Trash2, Search, Briefcase, Pencil, Eye, X } from "lucide-react";
+import { Users, Plus, Trash2, Search, Pencil, Eye } from "lucide-react";
+import { getCurrentNepaliDate } from "@/lib/nepaliDate";
+import { NEPALI_MONTHS } from "@/lib/constants";
 import type { Employee } from "@shared/schema";
 
 type FormData = {
@@ -19,6 +20,8 @@ const emptyForm: FormData = {
 };
 
 export default function Employees() {
+  const today = getCurrentNepaliDate();
+  const monthName = NEPALI_MONTHS.find(m => m.value === today.month)?.label ?? "";
   const { data: employees, isLoading } = useEmployees();
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
@@ -64,7 +67,7 @@ export default function Employees() {
     }
   };
 
-  const field = (label: string, key: keyof FormData, type = "text", placeholder = "") => (
+  const fld = (label: string, key: keyof FormData, type = "text", placeholder = "") => (
     <div className="space-y-1.5">
       <label className="text-sm font-semibold text-foreground">{label}</label>
       <Input
@@ -77,77 +80,100 @@ export default function Employees() {
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground">Employee Directory</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Manage employees, designations, and personal details.</p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {today.dayOfWeek}, {today.day} {monthName} {today.year} B.S. · {employees?.length ?? 0} employees
+          </p>
         </div>
         <Button onClick={openAdd} className="rounded-xl shadow-lg shadow-primary/20">
           <Plus className="w-4 h-4 mr-2" /> Add Employee
         </Button>
       </div>
 
-      <div className="bg-card border border-border/50 rounded-2xl shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-border/50 bg-muted/20">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, ID or department..."
-              value={search} onChange={e => setSearch(e.target.value)}
-              className="pl-9 rounded-xl bg-background"
-            />
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader className="bg-muted/30">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="font-semibold">ID</TableHead>
-                <TableHead className="font-semibold">Name</TableHead>
-                <TableHead className="font-semibold">Designation</TableHead>
-                <TableHead className="font-semibold">Department</TableHead>
-                <TableHead className="font-semibold">Contact</TableHead>
-                <TableHead className="font-semibold">Joining Date</TableHead>
-                <TableHead className="text-right font-semibold">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">Loading...</TableCell></TableRow>
-              ) : filteredEmployees?.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground"><Users className="w-12 h-12 mb-2 mx-auto text-muted" />No employees found.</TableCell></TableRow>
-              ) : filteredEmployees?.map(emp => (
-                <TableRow key={emp.id} className="hover:bg-muted/30">
-                  <TableCell className="font-mono text-sm font-medium text-slate-500">{emp.employeeId}</TableCell>
-                  <TableCell className="font-semibold">{emp.name}</TableCell>
-                  <TableCell>{emp.designation}</TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-primary/10 text-primary">
-                      <Briefcase className="w-3 h-3" />{emp.department}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{emp.contactNumber || "—"}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{emp.dateOfJoining || "—"}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openView(emp)} className="text-muted-foreground hover:text-foreground">
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(emp)} className="text-blue-500 hover:bg-blue-50">
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => { if (confirm(`Remove ${emp.name}?`)) deleteEmployee.mutate(emp.id); }} className="text-destructive hover:bg-destructive/10">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+      {/* Search */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by name, ID or department..."
+          value={search} onChange={e => setSearch(e.target.value)}
+          className="pl-9 rounded-xl bg-card"
+        />
       </div>
+
+      {/* Employee Cards Grid (all fields visible) */}
+      {isLoading ? (
+        <div className="text-center py-12 text-muted-foreground">Loading...</div>
+      ) : filteredEmployees?.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground flex flex-col items-center">
+          <Users className="w-12 h-12 mb-3 text-muted" />
+          No employees found.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filteredEmployees?.map(emp => (
+            <div key={emp.id} className="bg-card border border-border/50 rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+              <div className="bg-gradient-to-r from-primary/10 to-primary/5 px-5 py-4 border-b border-border/30 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center text-primary font-bold text-lg">
+                  {emp.name.charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-foreground truncate">{emp.name}</h3>
+                  <p className="text-xs text-muted-foreground font-mono">{emp.employeeId}</p>
+                </div>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="icon" className="w-7 h-7 text-muted-foreground hover:text-foreground" onClick={() => openView(emp)}>
+                    <Eye className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="w-7 h-7 text-blue-500 hover:bg-blue-50" onClick={() => openEdit(emp)}>
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="w-7 h-7 text-destructive hover:bg-destructive/10"
+                    onClick={() => { if (confirm(`Remove ${emp.name}?`)) deleteEmployee.mutate(emp.id); }}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+              <div className="px-5 py-4 space-y-2">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Designation</p>
+                    <p className="font-medium text-foreground">{emp.designation}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Department</p>
+                    <p className="font-medium text-foreground">{emp.department}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Contact</p>
+                    <p className="font-medium text-foreground">{emp.contactNumber || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Date of Birth</p>
+                    <p className="font-medium text-foreground">{emp.dateOfBirth || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Date of Joining</p>
+                    <p className="font-medium text-foreground">{emp.dateOfJoining || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Bank Account</p>
+                    <p className="font-medium text-foreground">{emp.bankAccountNumber || "—"}</p>
+                  </div>
+                </div>
+                {emp.address && (
+                  <div className="text-sm border-t border-border/30 pt-2">
+                    <p className="text-xs text-muted-foreground">Address</p>
+                    <p className="font-medium text-foreground">{emp.address}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Add/Edit Dialog */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
@@ -157,14 +183,14 @@ export default function Employees() {
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
-              {field("Employee ID *", "employeeId", "text", "EMP-001")}
-              {field("Full Name *", "name", "text", "Ram Bahadur")}
-              {field("Designation *", "designation", "text", "Manager")}
-              {field("Department *", "department", "text", "Production")}
-              {field("Contact Number", "contactNumber", "tel", "98XXXXXXXX")}
-              {field("Date of Birth", "dateOfBirth", "text", "2048-01-15")}
-              {field("Date of Joining", "dateOfJoining", "text", "2075-06-01")}
-              {field("Bank Account No.", "bankAccountNumber", "text", "XXXXXXXXX")}
+              {fld("Employee ID *", "employeeId", "text", "EMP-001")}
+              {fld("Full Name *", "name", "text", "Ram Bahadur")}
+              {fld("Designation *", "designation", "text", "Manager")}
+              {fld("Department *", "department", "text", "Production")}
+              {fld("Contact Number", "contactNumber", "tel", "98XXXXXXXX")}
+              {fld("Date of Birth", "dateOfBirth", "text", "2048-01-15")}
+              {fld("Date of Joining", "dateOfJoining", "text", "2075-06-01")}
+              {fld("Bank Account No.", "bankAccountNumber", "text", "XXXXXXXXX")}
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-semibold">Address</label>
@@ -180,11 +206,9 @@ export default function Employees() {
       {/* View Dialog */}
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
         <DialogContent className="sm:max-w-[480px] rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-display">Employee Details</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle className="text-2xl font-display">Employee Details</DialogTitle></DialogHeader>
           {viewEmp && (
-            <div className="mt-4 space-y-3">
+            <div className="mt-4 space-y-2.5">
               {[
                 ["Employee ID", viewEmp.employeeId], ["Full Name", viewEmp.name],
                 ["Designation", viewEmp.designation], ["Department", viewEmp.department],

@@ -3,8 +3,9 @@ import { useEmployees } from "@/hooks/use-employees";
 import { useAttendance } from "@/hooks/use-attendance";
 import { useOvertime } from "@/hooks/use-overtime";
 import { useKitchenExpenses } from "@/hooks/use-kitchen";
+import { useActiveDate } from "@/hooks/use-active-date";
 import { NEPALI_MONTHS } from "@/lib/constants";
-import { getActiveNepaliDate, setActiveNepaliDate } from "@/lib/dateStore";
+import { setActiveNepaliDate } from "@/lib/dateStore";
 import { getDaysInNepaliMonth } from "@/lib/nepaliDate";
 import { Users, CheckCircle, XCircle, Clock, UtensilsCrossed, TrendingUp, CalendarDays, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,7 +35,7 @@ function computeDayOfWeek(year: number, month: number, day: number): string {
 }
 
 export default function Dashboard() {
-  const [today, setToday] = useState(() => getActiveNepaliDate());
+  const today = useActiveDate();
   const [editing, setEditing] = useState(false);
   const [editYear, setEditYear] = useState(today.year);
   const [editMonth, setEditMonth] = useState(today.month);
@@ -91,7 +92,6 @@ export default function Dashboard() {
     const dow = computeDayOfWeek(editYear, editMonth, editDay);
     const newDate = { year: editYear, month: editMonth, day: editDay, dayOfWeek: dow };
     setActiveNepaliDate(newDate);
-    setToday(newDate);
     setEditing(false);
   };
 
@@ -125,6 +125,12 @@ export default function Dashboard() {
             </button>
           )}
         </div>
+
+        {!editing && (
+          <div className="mt-1 font-mono text-lg font-bold tracking-widest opacity-60">
+            {`${today.year}-${String(today.month).padStart(2,"0")}-${String(today.day).padStart(2,"0")} (BS)`}
+          </div>
+        )}
 
         {editing ? (
           <div className="space-y-3">

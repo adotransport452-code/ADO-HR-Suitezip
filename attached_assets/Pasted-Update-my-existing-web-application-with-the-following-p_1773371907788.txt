@@ -1,0 +1,219 @@
+Update my existing web application with the following professional system improvements.
+Do not break the existing database structure and UI layout. Improve the system by adding the features below.
+
+---
+
+1. NEPALI DATE SYSTEM (GLOBAL DATE CONTROL)
+
+Add a centralized Nepali Date system in the Dashboard.
+
+Requirements:
+
+• The Dashboard must display the current Nepali Date (BS – Bikram Sambat).
+• The date must update automatically in real time.
+• The system must automatically detect:
+
+- number of days in each Nepali month
+- correct Nepali calendar sequence
+- correct weekday
+
+• The date must be shown in this format:
+YYYY-MM-DD (BS)
+
+Global Date Sync:
+• The Dashboard date must be the master date for the entire application.
+• Every section of the system must automatically use this same date.
+• Users should NOT need to enter dates repeatedly.
+
+Editable Date Option:
+• Add an Edit Date button in the Dashboard.
+• When the user changes the date in the Dashboard:
+
+- all modules must instantly update to the new date
+- the updated date must be used across the whole system.
+
+Example:
+If the dashboard date is changed to 2081-10-05, every module must automatically apply that same date.
+
+---
+
+2. EMPLOYEE SECTION IMPROVEMENTS
+
+In the Employee Management module, add the following features.
+
+A. Import Data Feature
+
+Add a new feature placed to the left side of "Add Employees".
+
+Feature name: "Import"
+
+This Import section must support:
+
+1. Import Excel File (.xlsx, .csv)
+2. Paste Excel Text (copied rows from Excel)
+3. Import Image (Excel screenshot)
+
+AI Data Recognition:
+
+• The system should automatically read rows and columns from the file/text/image.
+• It should detect employee data such as:
+
+- Employee ID
+- Employee Name
+- Designation
+- Department
+- Phone
+- Salary (if available)
+
+• After recognition, the system must automatically fill the Employee Table fields correctly.
+
+---
+
+B. Multi Select Feature
+
+Add a "Select Mode" button on the top toolbar.
+
+When Select Mode is activated:
+
+• A checkbox column must appear before the "Employee ID" column.
+• The user must be able to select multiple employees at the same time.
+
+---
+
+C. Export Feature
+
+Add an "Export" button in the top toolbar.
+
+Export Requirements:
+
+• Export selected employees to Excel.
+• If no selection is made, export the entire employee list.
+• Export format must be clean Excel (.xlsx).
+
+---
+
+3. ATTENDANCE MODULE (COMPLETE REDESIGN)
+
+Redesign the entire Attendance section with the following structure.
+
+---
+
+A. Nepali Date Integration
+
+• Display the Nepali Date at the top left corner.
+• The date must automatically come from the Dashboard global date system.
+
+---
+
+B. Attendance Grid Layout
+
+Structure:
+
+Columns:
+• Employee Name
+• Designation (displayed below employee name)
+
+Rows:
+• All days of the selected Nepali month (1–32 depending on month)
+
+Example layout:
+
+Employee Name | 1 | 2 | 3 | 4 | 5 | ... | 30 | Total Present | Total Absent
+
+---
+
+C. Day Click Feature
+
+Each day cell must be clickable.
+
+When a user clicks a day for a specific employee:
+
+Open a new attendance entry page.
+
+The page must contain:
+
+Attendance Status:
+• Present
+• Absent
+• Half Day
+
+Time Fields:
+• Check In Time
+• Check Out Time
+
+Remarks Field:
+• Text input for notes.
+
+After saving, the selected day's attendance should appear in the grid.
+
+---
+
+D. Automatic Attendance Calculations
+
+At the end of each row, automatically calculate:
+
+1. Total Present
+2. Total Absent
+
+Calculation Rules:
+
+• Present = 1 day
+• Half Day = 0.5 day
+• 2 Half Days = 1 Present Day
+
+Total Present Formula:
+
+Total Present =
+All Present Days
+
++ (Total Half Days ÷ 2)
+
+Example:
+
+Present Days = 20
+Half Days = 4
+
+Total Present = 20 + (4 ÷ 2)
+Total Present = 22
+
+Total Absent:
+
+Count all days marked Absent.
+
+---
+
+E. Attendance Import / Export
+
+Add the following buttons in the Attendance module toolbar:
+
+1. Select
+2. Import
+3. Export
+
+Select Mode:
+• Allows selecting multiple employees.
+
+Import Options:
+• Excel file
+• Excel pasted text
+• Image screenshot of Excel
+
+Export Options:
+• Export attendance report to Excel.
+
+---
+
+4. GENERAL SYSTEM REQUIREMENTS
+
+• Maintain clean UI.
+• Tables must remain responsive.
+• Ensure database consistency.
+• Ensure automatic calculations update instantly.
+• All imported data must be validated before saving.
+
+---
+
+Goal:
+
+Make the system efficient so that the user does not need to repeatedly enter dates or employee names.
+Everything should automatically sync with the Dashboard Nepali date and employee database.

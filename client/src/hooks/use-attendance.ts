@@ -67,11 +67,33 @@ export function useDeleteAttendance() {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`${KEY}/${id}`, { method: "DELETE" });
+    mutationFn: async (rec: { id: number; employeeId: number; nepaliYear: number; nepaliMonth: number; day: number }) => {
+      // Delete the attendance record
+      const res = await fetch(`${KEY}/${rec.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete");
+
+      // Auto-sync: also delete matching leave record
+      try {
+        const leaveRes = await fetch(LEAVE_KEY);
+        if (leaveRes.ok) {
+          const allLeaves: any[] = await leaveRes.json();
+          const matching = allLeaves.find(l =>
+            l.employeeId === rec.employeeId &&
+            l.nepaliYear === rec.nepaliYear &&
+            l.nepaliMonth === rec.nepaliMonth &&
+            l.day === rec.day
+          );
+          if (matching) {
+            await fetch(`${LEAVE_KEY}/${matching.id}`, { method: "DELETE" });
+          }
+        }
+      } catch {}
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: [KEY] }); toast({ title: "Deleted" }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [KEY] });
+      qc.invalidateQueries({ queryKey: [LEAVE_KEY] });
+      toast({ title: "Deleted", description: "Attendance and linked leave record deleted." });
+    },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" })
   });
 }

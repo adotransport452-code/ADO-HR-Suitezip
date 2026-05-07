@@ -24,11 +24,6 @@ const STATUS_COLOR: Record<AttendanceStatus, string> = {
   absent: "bg-red-500 text-white",
   half_day: "bg-amber-400 text-white"
 };
-const STATUS_HOVER: Record<AttendanceStatus, string> = {
-  present: "hover:bg-emerald-50 hover:text-emerald-700",
-  absent: "hover:bg-red-50 hover:text-red-700",
-  half_day: "hover:bg-amber-50 hover:text-amber-700"
-};
 
 const DAY_LABELS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
@@ -41,14 +36,12 @@ export default function Attendance() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
 
-  // Cell dialog state
   const [cellDialog, setCellDialog] = useState<{ emp: Employee; day: number } | null>(null);
   const [cellStatus, setCellStatus] = useState<AttendanceStatus>("present");
   const [cellCheckIn, setCellCheckIn] = useState("");
   const [cellCheckOut, setCellCheckOut] = useState("");
   const [cellRemarks, setCellRemarks] = useState("");
 
-  // Import state
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState("");
   const [importPreview, setImportPreview] = useState<Array<{ empId: number; empName: string; day: number; status: AttendanceStatus }>>([]);
@@ -111,19 +104,27 @@ export default function Attendance() {
   const deleteCell = () => {
     if (!cellDialog) return;
     const rec = getRecord(cellDialog.emp.id, cellDialog.day);
-    if (rec) { deleteAttendanceMutation.mutate(rec.id, { onSuccess: () => setCellDialog(null) }); }
-    else setCellDialog(null);
+    if (rec) {
+      deleteAttendanceMutation.mutate({
+        id: rec.id,
+        employeeId: rec.employeeId,
+        nepaliYear: rec.nepaliYear,
+        nepaliMonth: rec.nepaliMonth,
+        day: rec.day
+      }, { onSuccess: () => setCellDialog(null) });
+    } else {
+      setCellDialog(null);
+    }
   };
 
   const toggleRow = (empId: number) => {
     setSelectedRows(prev => { const n = new Set(prev); if (n.has(empId)) n.delete(empId); else n.add(empId); return n; });
   };
 
-  // Export attendance to Excel
   const exportAttendance = () => {
     const rows = filteredEmployees.map(emp => {
       const row: Record<string, any> = {
-        "Employee ID": emp.employeeId, "Name": emp.name, "Designation": emp.designation, "Department": emp.department
+        "Employee ID": emp.employeeId, "Name": emp.name, "Designation": emp.designation
       };
       days.forEach(d => {
         const rec = getRecord(emp.id, d);
@@ -141,7 +142,6 @@ export default function Attendance() {
     toast({ title: "Exported", description: `Attendance for ${monthName} ${selectedYear} downloaded.` });
   };
 
-  // Parse import text (tab/comma separated: Name, Day1Status, Day2Status, ...)
   const parseImportText = (text: string) => {
     if (!text.trim() || !employees) return;
     const lines = text.trim().split("\n").filter(l => l.trim());
@@ -219,12 +219,9 @@ export default function Attendance() {
     toast({ title: "Import complete", description: `${importPreview.length} attendance records saved.` });
   };
 
-  // Column day-of-week header
   const getDayDow = (day: number) => DAY_LABELS[(startDow + day - 1) % 7];
   const isSaturday = (day: number) => getDayDow(day) === "Sat";
-  const isSunday = (day: number) => getDayDow(day) === "Sun";
 
-  // Summary
   const totalPresent = attendance?.filter(r => r.nepaliYear === selectedYear && r.nepaliMonth === selectedMonth && r.status === "present").length ?? 0;
   const totalAbsent = attendance?.filter(r => r.nepaliYear === selectedYear && r.nepaliMonth === selectedMonth && r.status === "absent").length ?? 0;
   const totalHalf = attendance?.filter(r => r.nepaliYear === selectedYear && r.nepaliMonth === selectedMonth && r.status === "half_day").length ?? 0;
@@ -261,7 +258,7 @@ export default function Attendance() {
           <label className="text-xs font-semibold text-muted-foreground">Year</label>
           <Select value={selectedYear.toString()} onValueChange={v => setSelectedYear(Number(v))}>
             <SelectTrigger className="w-28 rounded-xl"><SelectValue /></SelectTrigger>
-            <SelectContent>{Array.from({ length: 103 }, (_, i) => 2080 + i).map(y => <SelectItem key={y} value={y.toString()}>{y} B.S.</SelectItem>)}</SelectContent>
+            <SelectContent>{Array.from({ length: 10 }, (_, i) => 2078 + i).map(y => <SelectItem key={y} value={y.toString()}>{y} B.S.</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="space-y-1">
@@ -315,7 +312,7 @@ export default function Attendance() {
                 <th className="text-left px-3 py-2 font-bold text-foreground border-r border-border/20 min-w-[160px]">Employee</th>
                 {days.map(d => (
                   <th key={d} className={cn("w-9 text-center py-1 border-r border-border/10 font-medium",
-                    isSaturday(d) ? "bg-purple-50 text-purple-600" : isSunday(d) ? "bg-red-50 text-red-500" : "text-muted-foreground")}>
+                    isSaturday(d) ? "bg-red-50 text-red-500" : "text-muted-foreground")}>
                     {getDayDow(d).slice(0,2)}
                   </th>
                 ))}
@@ -325,10 +322,10 @@ export default function Attendance() {
               {/* Day number row */}
               <tr className="bg-muted/20 border-b border-border/30">
                 {selectMode && <th className="border-r border-border/20" />}
-                <th className="text-left px-3 py-1 text-xs text-muted-foreground border-r border-border/20 font-medium">Designation / Dept</th>
+                <th className="text-left px-3 py-1 text-xs text-muted-foreground border-r border-border/20 font-medium">Designation</th>
                 {days.map(d => (
                   <th key={d} className={cn("text-center py-1 border-r border-border/10 font-bold",
-                    isSaturday(d) ? "bg-purple-50/60 text-purple-600" : isSunday(d) ? "bg-red-50/60 text-red-500" : "text-foreground")}>
+                    isSaturday(d) ? "bg-red-50/60 text-red-500" : "text-foreground")}>
                     {d}
                   </th>
                 ))}
@@ -353,14 +350,13 @@ export default function Attendance() {
                     <td className="px-3 py-2 border-r border-border/20 min-w-[160px]">
                       <div className="font-semibold text-foreground leading-tight">{emp.name}</div>
                       <div className="text-muted-foreground text-[10px] mt-0.5">{emp.designation}</div>
-                      <div className="text-muted-foreground text-[10px]">{emp.department}</div>
                     </td>
                     {days.map(d => {
                       const rec = getRecord(emp.id, d);
                       const status = rec?.status as AttendanceStatus | undefined;
                       return (
                         <td key={d} className={cn("w-9 text-center py-1 border-r border-border/10",
-                          isSaturday(d) ? "bg-purple-50/30" : isSunday(d) ? "bg-red-50/20" : "")}>
+                          isSaturday(d) ? "bg-red-50/30" : "")}>
                           <button
                             onClick={() => openCellDialog(emp, d)}
                             className={cn("w-7 h-6 rounded text-[10px] font-bold transition-all",
@@ -387,7 +383,7 @@ export default function Attendance() {
           <span className="flex items-center gap-1"><span className="w-5 h-4 rounded bg-emerald-500 flex items-center justify-center text-white text-[10px] font-bold">P</span> Present</span>
           <span className="flex items-center gap-1"><span className="w-5 h-4 rounded bg-red-500 flex items-center justify-center text-white text-[10px] font-bold">A</span> Absent</span>
           <span className="flex items-center gap-1"><span className="w-5 h-4 rounded bg-amber-400 flex items-center justify-center text-white text-[10px] font-bold">H</span> Half Day</span>
-          <span className="flex items-center gap-1"><span className="w-5 h-4 rounded bg-purple-100 flex items-center justify-center text-purple-600 text-[10px] font-bold">Sa</span> Saturday</span>
+          <span className="flex items-center gap-1"><span className="w-5 h-4 rounded bg-red-100 flex items-center justify-center text-red-500 text-[10px] font-bold">Sa</span> Saturday</span>
           <span className="ml-auto font-medium text-foreground">Total Present = Present + (Half Days ÷ 2)</span>
         </div>
       </div>
@@ -451,9 +447,7 @@ export default function Attendance() {
             <DialogTitle className="text-2xl font-display">Import Attendance</DialogTitle>
             <p className="text-sm text-muted-foreground">Import attendance for {monthName} {selectedYear} B.S.</p>
           </DialogHeader>
-
           <div className="space-y-5 mt-3">
-            {/* File Upload */}
             <div className="space-y-2">
               <label className="text-sm font-semibold flex items-center gap-1.5">
                 <Upload className="w-4 h-4 text-primary" /> Import Excel / CSV File
@@ -466,8 +460,6 @@ export default function Attendance() {
                 <p className="text-xs text-muted-foreground mt-1">Format: Name | Day1 | Day2 | ... (use P, A, H)</p>
               </div>
             </div>
-
-            {/* Paste Text */}
             <div className="space-y-2">
               <label className="text-sm font-semibold">Paste Excel Data</label>
               <textarea
@@ -481,8 +473,6 @@ export default function Attendance() {
               </Button>
               <p className="text-xs text-muted-foreground">Copy rows from Excel and paste here. Tab-separated: Name, Day1, Day2, ...</p>
             </div>
-
-            {/* Preview */}
             {importPreview.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">

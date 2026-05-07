@@ -124,6 +124,26 @@ export function getDaysInNepaliMonth(year: number, month: number): number {
   return getDaysInMonth(year, month);
 }
 
+export function bsToGregorian(bsYear: number, bsMonth: number, bsDay: number): Date {
+  const REF_AD_MS = new Date(2025, 3, 14).getTime();
+  let totalDays = 0;
+  let y = 2082, m = 1, d = 1;
+  const isAfter = bsYear > 2082 || (bsYear === 2082 && bsMonth > 1) || (bsYear === 2082 && bsMonth === 1 && bsDay > 1);
+  const isBefore = bsYear < 2082 || (bsYear === 2082 && bsMonth < 1) || (bsYear === 2082 && bsMonth === 1 && bsDay < 1);
+  if (isAfter) {
+    while (!(y === bsYear && m === bsMonth && d === bsDay)) {
+      d++; totalDays++;
+      if (d > getDaysInMonth(y, m)) { d = 1; m++; if (m > 12) { m = 1; y++; } }
+    }
+  } else if (isBefore) {
+    while (!(y === bsYear && m === bsMonth && d === bsDay)) {
+      d--; totalDays--;
+      if (d < 1) { m--; if (m < 1) { m = 12; y--; } d = getDaysInMonth(y, m); }
+    }
+  }
+  return new Date(REF_AD_MS + totalDays * 86400000);
+}
+
 export function getMonthStartDayOfWeek(year: number, month: number): number {
   // Find the AD date of the 1st of the given BS month
   // Use reference and count forward

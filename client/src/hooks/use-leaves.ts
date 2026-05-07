@@ -81,14 +81,36 @@ export function useDeleteLeave() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (id: number) => {
-      const url = buildUrl(api.leaves.delete.path, { id });
+    mutationFn: async (leave: { id: number; employeeId: number; nepaliYear: number; nepaliMonth: number; day: number }) => {
+      // Delete the leave record
+      const url = buildUrl(api.leaves.delete.path, { id: leave.id });
       const res = await fetch(url, { method: api.leaves.delete.method });
       if (!res.ok) throw new Error("Failed to delete leave");
+
+      // Auto-sync: also delete matching attendance record
+      try {
+        const attRes = await fetch(ATT_KEY);
+        if (attRes.ok) {
+          const allAtt: any[] = await attRes.json();
+          const matching = allAtt.find(a =>
+            a.employeeId === leave.employeeId &&
+            a.nepaliYear === leave.nepaliYear &&
+            a.nepaliMonth === leave.nepaliMonth &&
+            a.day === leave.day
+          );
+          if (matching) {
+            await fetch(`${ATT_KEY}/${matching.id}`, { method: "DELETE" });
+          }
+        }
+      } catch {}
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.leaves.list.path] });
-      toast({ title: "Leave Removed", description: "Leave record deleted." });
+      queryClient.invalidateQueries({ queryKey: [ATT_KEY] });
+      toast({ title: "Leave Removed", description: "Leave and linked attendance record deleted." });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     }
   });
 }

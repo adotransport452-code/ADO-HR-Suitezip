@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -78,6 +78,26 @@ export const officeExpenses = pgTable("office_expenses", {
   remarks: text("remarks"),
 });
 
+export const salaries = pgTable("salaries", {
+  id: serial("id").primaryKey(),
+  employeeId: integer("employee_id").notNull(),
+  nepaliYear: integer("nepali_year").notNull(),
+  nepaliMonth: integer("nepali_month").notNull(),
+  totalSalary: integer("total_salary").notNull().default(0),
+  providedSalary: integer("provided_salary").notNull().default(0),
+  paymentType: text("payment_type"),
+  paymentDate: text("payment_date"),
+  notes: text("notes"),
+});
+
+export const profiles = pgTable("profiles", {
+  id: uuid("id").primaryKey(),
+  email: text("email").notNull(),
+  fullName: text("full_name"),
+  role: text("role").notNull().default("user"),
+});
+
+// ─── Insert Schemas ───────────────────────────────────────────
 export const insertEmployeeSchema = createInsertSchema(employees).omit({ id: true });
 export const insertLeaveSchema = createInsertSchema(leaves).omit({ id: true });
 export const insertMealSchema = createInsertSchema(meals).omit({ id: true });
@@ -85,7 +105,9 @@ export const insertAttendanceSchema = createInsertSchema(attendance).omit({ id: 
 export const insertOvertimeSchema = createInsertSchema(overtime).omit({ id: true });
 export const insertKitchenExpenseSchema = createInsertSchema(kitchenExpenses).omit({ id: true });
 export const insertOfficeExpenseSchema = createInsertSchema(officeExpenses).omit({ id: true });
+export const insertSalarySchema = createInsertSchema(salaries).omit({ id: true });
 
+// ─── Types ────────────────────────────────────────────────────
 export type Employee = typeof employees.$inferSelect;
 export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
 
@@ -106,3 +128,8 @@ export type InsertKitchenExpense = z.infer<typeof insertKitchenExpenseSchema>;
 
 export type OfficeExpense = typeof officeExpenses.$inferSelect;
 export type InsertOfficeExpense = z.infer<typeof insertOfficeExpenseSchema>;
+
+export type Salary = typeof salaries.$inferSelect;
+export type InsertSalary = z.infer<typeof insertSalarySchema>;
+
+export type Profile = typeof profiles.$inferSelect;
